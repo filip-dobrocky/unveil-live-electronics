@@ -4,6 +4,12 @@
 ~totalChans = ~micIns.size + ~nLoops;
 ~maxLoopLen = 30;
 
+// MIDI mapping
+~recBtnNotes = Array.series(~nLoops, 73, 1);
+~playBtnNotes = Array.series(~nLoops, 41, 1);
+
+s.options.blockSize = 256;
+
 s.waitForBoot({
 	Buffer.freeAll;
 
@@ -12,6 +18,8 @@ s.waitForBoot({
 	~outBus = Bus.audio(s, ~totalChans);
 
 	~buffers = Array.fill(~nLoops, { Buffer.alloc(s, (~maxLoopLen * s.sampleRate).ceil) });
+
+	MIDIIn.connectAll;
 
 	s.sync;
 
@@ -74,7 +82,83 @@ s.waitForBoot({
 	Synth(\directOut, [\in, ~preBus, \out, 0], addAction: 'addToTail');
 });
 
+~playBtnStates = Array.fill(~nLoops, { false });
+~recBtnStates = Array.fill(~nLoops, { false });
+~loopStates = Array.fill(~nLoops, { false });
+
+
+~clearRoutines = Array.fill(~nLoops, { });
+
+MIDIdef.noteOn(\buttonsOn, {
+	arg val, num;
+	var recIndex, playIndex;
+	recIndex = ~recBtnNotes.indexOf(num);
+	playIndex = ~playBtnNotes.indexOf(num);
+
+	if (recIndex != nil) {
+
+		// long press: clear
+		~clearRoutines[recIndex] = Routine.new({
+			2.wait;
+			~buffers[recIndex].zero;
+			~loopStates[recIndex] = false;
+			~recBtnStates[recIndex] = false;
+			("buffer " ++ recIndex ++ " cleared").postln;
+		}).play;
+
+		if (~recBtnStates[recIndex] == false)
+		{
+			// start recording
+			if (~loopStates[recIndex] == false)
+			{
+				~loopers[recIndex].set(\trig, 1, \run, 1, \recGain, 1, \fbGain, 1, \xfade, 0.02)
+			}
+			{
+				~loopers[recIndex].set(\run, 0, \recGain, 1, \fbGain, -1.dbamp)
+			};
+
+			("recording into buffer " ++ recIndex).postln;
+
+			~recBtnStates[recIndex] = true;
+			~loopStates[recIndex] = true;
+		}
+		{
+			// stop recording, continue playing
+			("recorded into buffer " ++ recIndex).postln;
+			~loopers[recIndex].set(\run, 0, \recGain, 0, \fbGain, 1);
+			~recBtnStates[recIndex] = false;
+		};
+
+	};
+
+	if (playIndex != nil) {
+		if (~playBtnStates[playIndex]) {
+			// stop playing
+			~loopers[playIndex].set(\run, 0, \reclev, 0, \prelev, 1, \loopAmp, 1);
+			~playBtnStates[playIndex] = false;
+		}
+		{
+			// start playing
+			~loopers[playIndex].set(\run, 0, \reclev, 0, \prelev, 1, \loopAmp, 0);
+			~playBtnStates[playIndex] = true;
+		};
+
+	};
+});
+
+MIDIdef.noteOff(\buttonsOff, {
+	arg val, num;
+	var recIndex;
+	recIndex = ~recBtnNotes.indexOf(num);
+
+	if (recIndex != nil) {
+		"off".postln;
+		~clearRoutines[recIndex].stop;
+	};
+});
+
 )
+
 
 ~loopers[0].set(\trig, 1, \run, 1, \recGain, 1, \fbGain, 1, \xfade, 0.02);
 
@@ -82,11 +166,14 @@ s.waitForBoot({
 
 ~loopers[2].get(\fbBus, { |value| value.postln });
 
-~reso.set(\mix, 0.4);
+~reso.set(\mix, 0);
 ~reso.set(\freq, 200);
 
 PeakMonitor(~preBus);
 PeakMonitor(~postBus);
 ~preBus
+
+MIDIFunc.trace(true);
+MIDIFunc.trace(false);
 
 s.options.numInputBusChannels
