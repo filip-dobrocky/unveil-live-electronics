@@ -35,6 +35,7 @@ SynthDef(\morph, { arg out=0, bufnum=0, gateThresh=0.4, inBBus = 0;
     inB = In.ar(inBBus, 1);
     chainA = FFT(LocalBuf(fftSize), inA);
     chainA = PV_MagSmooth(chainA, MouseY.kr(0, 1));
+	PV_Mag
     chainB = FFT(LocalBuf(fftSize), inB);
     chainB = PV_MagSmooth(chainB, MouseY.kr(0, 1));
     chain = PV_Morph(chainA, chainB, MouseX.kr);

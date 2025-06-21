@@ -2,26 +2,37 @@
 // === Settings ===
 ~micIns = #[0, 1];
 ~micAmps = #[1, 1];
+// ~micIns = #[0];
+// ~micAmps = #[1];
 ~nLoops = 3;
 ~totalChans = ~micIns.size + ~nLoops;
 ~maxLoopLen = 30;
 s.options.blockSize = 256;
 s.options.memSize = 614400;
+s.options.numOutputBusChannels = 2;
+s.options.numWireBufs = 512;
+
+~output = \stereo; // \binaural, \cube
+
 
 // === Chords ===
 ~chords = [
 	[440, 660, 880, 1320],
-	[60, 63, 67, 71].midicps,
-	[62, 65, 69, 77].midicps,
-	[65, 70, 82, 90].midicps
-];
+	(72 + \CM7.asNotes).midicps,
+	(72 + \Em7.asNotes).midicps,
+	(72 + \GM7.asNotes).midicps,
+	(84 + \Dm7.asNotes).midicps,
+	(72 + \B7.asNotes).midicps,
+	(72 + \Am7.asNotes).midicps,
+	(72 + \BbM7.asNotes).midicps,
+] * 0.5;
 
 // === MIDI mapping ===
 ~recBtnNotes = Array.series(~nLoops, 73, 1);
 ~playBtnNotes = Array.series(~nLoops, 41, 1);
 ~loopLvlCCs = Array.series(~nLoops, 77, 1);
 ~xfadeCCs = Array.series(~nLoops, 80, 1);
-~chordBtnNotes = Array.series(~chords.size, 57, 1);
+~chordBtnNotes = Array.series(4, 57, 1) ++ Array.series(4, 89, 1);
 ~masterLvlCC = 84;
 ~inputLvlCC = 83;
 ~inputGainCC = 55;
@@ -32,6 +43,8 @@ s.options.memSize = 614400;
 ~fx3CtlCC = [15, 31, 51]; // destroyer
 ~fx4CtlCC = [16, 32, 52]; // reverb
 ~fx5CtlCC = [17, 33, 53]; // spectral
+~fx6CtlCC = [18, 34, 54]; //
+~fx8CtlCC = [20, 36, 56];
 ~fxToggleNote = 105;
 
 
@@ -46,6 +59,13 @@ s.waitForBoot({
 	// === Init ===
 
 	Buffer.freeAll;
+	~samplesDir = "/home/filip/Music/parktools/samples";
+	~samples = PathName(~samplesDir).entries.collect({
+		arg sf;
+		if (PathName(sf.fullPath).isFile) {
+			Buffer.readChannel(s, sf.fullPath, channels: [0]).normalize;
+		};
+	});
 
 	~inBus = Bus.audio(s, ~micIns.size);
 	~preBus = Bus.audio(s, ~totalChans);
@@ -56,11 +76,69 @@ s.waitForBoot({
 
 	~buffers = Array.fill(~nLoops, { Buffer.alloc(s, (~maxLoopLen * s.sampleRate).ceil) });
 
+	~transferFunc = Buffer.alloc(s, 512);
+	~transferFunc.cheby([1,1,0,1,0,1]);
+
 	MIDIIn.connectAll;
 
 	s.sync;
 
+	// === Ambisonics ===
+	~cubeDirections = [ [ 0, 0 ], [ 330, 0 ], [ 300, 0 ], [ 270, 0 ], [ 240, 0 ], [ 210, 0 ], [ 180, 0 ], [ 150, 0 ], [ 120, 0 ], [ 90, 0 ], [ 60, 0 ], [ 30, 0 ], [ 337.5, 30 ], [ 292.5, 30 ], [ 247.5, 30 ], [ 202.5, 30 ], [ 157.5, 30 ], [ 112.5, 30 ], [ 67.5, 30 ], [ 22.5, 30 ], [ 315, 60 ], [ 225, 60 ], [ 135, 60 ], [ 45, 60 ], [ 0, 90 ] ].degrad;
+
+	~encoder = FoaEncoderMatrix.newPanto(~totalChans);
+	~decoder = switch (~output)
+	{ \cube } { FoaDecoderMatrix.newHoa1 }
+	{ \binaural } { FoaDecoderKernel.newCIPIC }
+	{ FoaDecoderMatrix.newStereo };
+
+	if (~output == \cube) {
+		~hoaMatrix = HoaMatrixDecoder.newModeMatch(
+			~cubeDirections,
+			\energy,
+			\rms,
+			1
+		);
+	};
+
+	s.sync;
+
+
 	// === SynthDefs ===
+
+	SynthDef(\sampler, {
+		|amp = 1, in = 0, out = 0, threshold = 0.5, rate = 1, startBuf = 0, numBufs = 1|
+		var inSig, ampEnv, trig, index, bufnum, playBuf;
+
+		// Monitor input signal
+		inSig = In.ar(in, 1);
+
+		// Track amplitude
+		ampEnv = Amplitude.ar(inSig);
+
+		// Trigger on rising edge over threshold
+		trig = HPZ1.ar(ampEnv > threshold) > 0;
+
+		// Random index (0 to numBufs-1)
+		index = Demand.ar(trig, 0, Dshuf((0..~samples.size-1), inf));
+
+		// Use index as buffer number (assuming ~bufnums = [0, 1, 2, ...])
+		bufnum = index;
+
+		// Playback
+		playBuf = PlayBuf.ar(
+			numChannels: 1,
+			bufnum: bufnum,
+			rate: BufRateScale.kr(bufnum) * rate,
+			trigger: trig,
+			startPos: 0,
+			doneAction: 0
+		);
+
+		// Output
+		Out.ar(out, playBuf * amp);
+	}).add;
+
 
 	SynthDef(\directIn, {
 		var sig;
@@ -103,7 +181,7 @@ s.waitForBoot({
 	}).add;
 
 	SynthDef(\reso, {
-		arg freqs = #[440, 660, 880, 1320], amps = #[1, 1, 1, 1], decays = #[1, 1, 1, 1], amp = 1, harmonics = 10, bus = 0, mix = 0;
+		arg freqs = #[440, 660, 880, 1320], amps = #[1, 1, 1, 1], decays = #[1, 1, 1, 1], amp = 1, harmonics = 10, bus = 0;
 		var sig, in, minF;
 
 		minF = freqs.reduce({ |a, b| a.min(b) });
@@ -118,7 +196,7 @@ s.waitForBoot({
 		sig = LPF.ar(sig, harmonics*minF);
 		sig = Limiter.ar(sig) * 0.2;
 
-		XOut.ar(bus, mix.lag, sig);
+		XOut.ar(bus, \mix.kr(0, 0.5), sig);
 	}).add;
 
 	SynthDef(\pitchShifter, {
@@ -129,22 +207,30 @@ s.waitForBoot({
 		sig = PitchShift.ar(
 			in,
 			0.2,
-			\ratio.kr(1)
+			\ratio.kr(1),
+			0.005,
+			0.1
 		);
 
-		XOut.ar(bus, \mix.kr(0, 0.2), sig);
+		XOut.ar(bus, \mix.kr(0, 0.5), sig);
 	}).add;
 
 	SynthDef(\destroyer, {
+		arg cutoff = 300;
 		var in, sig;
 		var bus = \bus.kr(0);
+		var bass = \bass.kr(0, 0.5).clip(0, 1);
+		var crush = \crush.kr(0, 0.5).clip(0, 1) ** 0.5;
 		in = In.ar(bus, ~totalChans);
 		sig = Decimator.ar(
 			in,
-			s.sampleRate * (1 - \decimate.kr(0).clip(0, 0.8)),
-			\bitcrush.kr(0).linlin(0, 1, 24, 2)
+			s.sampleRate * (1 - crush.linlin(0, 1, 0, 0.8)),
+			crush.linlin(0, 1, 24, 2)
 		);
-		XOut.ar(bus, \mix.kr(0, 0.2), sig);
+		sig = ((1 - bass) * sig) + (bass * RLPF.ar(sig, cutoff, 0.5));
+		sig.softclip; // tanh?
+		// sig = Limiter.ar(sig);
+		XOut.ar(bus, \mix.kr(0, 0.5), sig);
 	}).add;
 
 	SynthDef(\spectral, {
@@ -153,7 +239,7 @@ s.waitForBoot({
 		mix1 = 0, mix2 = 0, mix3 = 0, amp = 1;
 
 		var in, loopIns, mixes, chainIn, frozenChains, freezeTrig, filtered, final, sig, ptrs, chainWet;
-		var fftSize = 2048;
+		var fftSize = 512;
 		var chans =  ~micIns.size;
 
 		in = In.ar(inBus, chans);
@@ -181,10 +267,10 @@ s.waitForBoot({
 
 		frozenChains.do { |frozen, i|
 			var mix = mixes[i];
-			filtered = filtered.collect { |chain, i|d
+			filtered = filtered.collect { |chain, i|
 				// var copy = PV_Copy(frozen, LocalBuf(fftSize));
 				// var mul = PV_MagMul(copy, frozen);
-				var gated = PV_MagBelow(frozen, Amplitude.ar(in[i], 0.01, 2, 1000));
+				var gated = PV_MagBelow(frozen, Amplitude.ar(in[i], 0.01, 2, 500));
 				PV_Morph(chain, gated, mix)
 			};
 		};
@@ -198,8 +284,7 @@ s.waitForBoot({
 
 	SynthDef(\reverb, {
 		arg
-		mix = 1,
-		predelay = 0.0,
+		predelay = 0.001,
 		inputDiff1 = 1,
 		inputDiff2 = 1,
 		bandwidth = 0.1,
@@ -231,7 +316,7 @@ s.waitForBoot({
 		// Define delay times
 		dlTimesInput = [0.00477, 0.00359, 0.01273, 0.0093];
 		dlTimesTank1 = [0.02257, 0.14962, 0.06048, 0.12499];
-		dlTimesTank2 = [0.03050, 0.14169, 0.08924, 0.10628];
+		dlTimesTank2 = [0.03050, 0.14169, 0.08924, 0.10628] * 0.5;
 
 		// Make sure delay arrays are long enough
 		while {
@@ -276,19 +361,53 @@ s.waitForBoot({
 
 		// Optional shimmer (applied per channel)
 		sig = ((1 - shimmerMixLag) * output)
-		+ (shimmerMixLag * PitchShift.ar(output, pitchRatio: (2 ** (pitchShift / 12))));
+		+ (shimmerMixLag * PitchShift.ar(output, pitchRatio: (2 ** (pitchShift / 12)), pitchDispersion: 0.01, timeDispersion: 0.1 ));
 
-		XOut.ar(bus, mix, sig);
+		XOut.ar(bus, \mix.kr(0, 0.5), sig);
 	}).add;
 
 
 	SynthDef(\fxTail, {
-		Out.ar(\out.ir(0), Limiter.ar(In.ar(\in.ir(0)), ~totalChans));
+		Out.ar(\out.ir(0), Limiter.ar(In.ar(\in.ir(0), ~totalChans)));
 	}).add;
 
 	SynthDef(\directOut, {
-		Out.ar(\out.ir(0), Splay.ar(In.ar(\in.ir(0), ~totalChans)));
-		// Out.ar(\out.ir(0), In.ar(\in.ir(0), ~totalChans));
+		var decoded, sig, hoa;
+		var rttFreq = \rttFreq.kr(0, 0.1);
+
+		// Encode
+		sig = FoaEncode.ar(In.ar(\in.ir(0), ~totalChans), ~encoder);
+
+		// Transform
+		sig = FoaRTT.ar(
+			sig,
+			LFDNoise3.ar(rttFreq, pi, add: pi),
+			LFDNoise3.ar(rttFreq**(1/3), pi, add: pi),
+			LFDNoise3.ar(rttFreq**(2/3), pi, add: pi)
+		);
+
+		sig = FoaPush.ar(sig, \pushAngle.kr(0, 0.2));
+
+		sig = FoaRTT.ar(
+			sig,
+			\rotX.kr(0),
+			0,
+			\rotY.kr(0)
+		);
+
+		sig = AmbiVerbSC.ar(sig, \reverbMix.kr(0.1, 0.2), 0.01, lowRT: 6, highRT: 4, size: 'Metallener Saal');
+
+		hoa = FoaDecode.ar(FoaNFC.ar(sig, AtkHoa.refRadius), ~decoder);
+		hoa = VSTPlugin.ar(hoa, hoa.size);
+
+		if (~output == \cube) {
+			sig = HoaDecodeMatrix.ar(hoa, ~hoaMatrix);
+		}
+		{
+			sig = FoaDecode.ar(sig, ~decoder);
+		};
+
+		Out.ar(\out.ir(0), sig);
 	}).add;
 
 	// === Synths, routing ===
@@ -296,6 +415,14 @@ s.waitForBoot({
 
 
 	~directIn = Synth(\directIn, [\ins, ~micIns, \out, ~inBus]);
+
+	~sampler = Synth.after(~directIn, \sampler, [
+		\in, ~inBus,
+		\out, ~preBus.subBus(0),
+		\amp, 0,
+		\startBuf, ~samples[0].bufnum,
+		\numBufs, ~samples.size
+	]);
 
 	~spectral = Synth.after(~directIn, \spectral, [
 		\inBus, ~inBus,
@@ -317,9 +444,9 @@ s.waitForBoot({
 	~reso = Synth(\reso, [\bus, ~preBus], addAction: 'addToTail');
 	~pitchShifter = Synth(\pitchShifter, [\bus, ~preBus], addAction: 'addToTail');
 	~destroyer = Synth(\destroyer, [\bus, ~preBus], addAction: 'addToTail');
-	~reverb = Synth(\reverb, [\bus, ~preBus, \shimmerMix, 0.5, \mix, 0.6, \damping, 0.7],  addAction: 'addToTail');
+	~reverb = Synth(\reverb, [\bus, ~preBus, \shimmerMix, 0, \mix, 0, \damping, 0.9],  addAction: 'addToTail');
 	Synth(\fxTail, [\in, ~preBus, \out, ~postBus], addAction: 'addToTail');
-	Synth(\directOut, [\in, ~preBus, \out, 0], addAction: 'addToTail');
+	~directOut = Synth(\directOut, [\in, ~preBus, \out, 0, \pushAngle, pi/2], addAction: 'addToTail');
 
 	~fx = [~reso, ~pitchShifter, ~destroyer, ~reverb];
 
@@ -398,11 +525,13 @@ s.waitForBoot({
 				~loopers[playIndex].set(\playTrig, 1, \run, 0, \reclev, 0, \prelev, 1,
 					\loopAmp, ~loopAmps[playIndex]);
 				~playBtnStates[playIndex] = true;
+				"loop % playing".format(playIndex).postln;
 			}
 			{
 				// stop playing
 				~loopers[playIndex].set(\run, 0, \reclev, 0, \prelev, 1, \loopAmp, 0);
 				~playBtnStates[playIndex] = false;
+				"loop % stopped".format(playIndex).postln;
 			};
 
 		};
@@ -531,13 +660,13 @@ s.waitForBoot({
 		}
 		{~fx3CtlCC[1]} {
 			scaled = val.linlin(0, 127, 0, 1);
-			~destroyer.set(\bitcrush, scaled);
-			"destroyer bitcrush: %".format(scaled).postln;
+			~destroyer.set(\crush, scaled);
+			"destroyer crush: %".format(scaled).postln;
 		}
 		{~fx3CtlCC[2]} {
 			scaled = val.linlin(0, 127, 0, 1);
-			~destroyer.set(\decimate, scaled);
-			"destroyer decimate: %".format(scaled).postln;
+			~destroyer.set(\bass, scaled);
+			"destroyer bass: %".format(scaled).postln;
 		}
 		{~fx4CtlCC[0]} {
 			scaled = val.linlin(0, 127, 0, 1);
@@ -552,14 +681,15 @@ s.waitForBoot({
 
 		}
 		{~fx4CtlCC[2]} {
-			scaled = val.linlin(0, 127, 0.001, 0.999);
+			scaled = val.linlin(0, 127, 0.001, 0.99);
 			~reverb.set(\damping, scaled);
 			"reverb damping: %".format(scaled).postln;
 		}
 
 		{~fx5CtlCC[0]} {
 			scaled = val.linlin(0, 127, 0, 1);
-			": %".format(scaled).postln;
+			~sampler.set(\amp, scaled);
+			"sampler amp: %".format(scaled).postln;
 
 		}
 		{~fx5CtlCC[1]} {
@@ -572,6 +702,38 @@ s.waitForBoot({
 			scaled = val.linlin(0, 127, 0, 2);
 			~spectral.set(\amp, scaled);
 			"spectral amp: %".format(scaled).postln;
+		}
+
+		{~fx6CtlCC[0]} {
+			scaled = val.linlin(0, 127, 0, 1);
+			~directOut.set(\reverbMix, scaled);
+			"ambiverb mix: %".format(scaled).postln;
+		}
+		{~fx6CtlCC[1]} {
+			scaled = val.linlin(0, 127, 0, 1);
+			~sampler.set(\threshold, scaled);
+			"sampler thresh: %".format(scaled).postln;
+		}
+		{~fx6CtlCC[2]} {
+			scaled = val.linlin(0, 127, 0, 200);
+			~directOut.set(\rttFreq, scaled);
+			"rtt freq: %".format(scaled).postln;
+		}
+
+		{~fx8CtlCC[0]} {
+			scaled = val.linlin(0, 127, 0, pi / 2);
+			~directOut.set(\pushAngle, scaled);
+			"push angle: %".format(scaled).postln;
+		}
+		{~fx8CtlCC[1]} {
+			scaled = val.linlin(0, 127, -pi, pi);
+			~directOut.set(\rotY, scaled);
+			"tumble: %".format(scaled).postln;
+		}
+		{~fx8CtlCC[2]} {
+			scaled = val.linlin(0, 127, pi, -pi);
+			~directOut.set(\rotX, scaled);
+			"rotate: %".format(scaled).postln;
 		}
 
 		{ /*default case*/ };
@@ -591,6 +753,26 @@ s.waitForBoot({
 
 )
 
+(
+// VISUALIZE
+fork {
+	VSTPlugin.search(s);
+	s.sync;
+	~vis = VSTPluginController(~directOut);
+	~vis.open('EnergyVisualizer', verbose: true);
+	s.sync;
+	~vis.editor;
+}
+)
+
+// TEST SOUND
+(
+a = {Out.ar(~preBus,
+	BPF.ar(WhiteNoise.ar, Rand(600 ! ~totalChans, 1000), 0.1)
+)}.play
+)
+a.free
+
 ~fxOnOff.(true)
 
 ~loopers[2].get(\fbBus, { |value| value.postln });
@@ -601,15 +783,24 @@ s.waitForBoot({
 
 ~spectral.set(\freezeThresh, 0.9)
 
-~directIn.set(\inAmps, [1, 1]);
+~directIn.set(\inAmps, [0.8, 2.5]);
 
 PeakMonitor(~preBus);
 PeakMonitor(~postBus);
 ~preBus
 2.clip(0, 1)
 
+(
+a = {Out.ar(~preBus,
+	BPF.ar(WhiteNoise.ar, Rand(600 ! ~totalChans, 1000), 0.1) *
+	(LFDNoise3.kr(7 ! ~totalChans))
+)}.play
+)
+
 MIDIIn.connectAll;
 MIDIFunc.trace(true);
 MIDIFunc.trace(false);
 
 s.options.numInputBusChannels
+
+AmbiVerbGUI(s)
