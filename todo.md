@@ -1,4 +1,0 @@
-- multi looper
-- buses
-- octaver
-- MIDI CC

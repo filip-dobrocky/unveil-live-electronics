@@ -703,7 +703,10 @@ s.waitForBoot({
 )
 
 (
-// VISUALIZE
+// GUI
+
+this.executeFile(~dir +/+ "stopwatch.scd");
+~dir = "E:/Projects/_live_electronic/CMKK-live-electronic";
 fork {
 	VSTPlugin.search(s);
 	s.sync;
