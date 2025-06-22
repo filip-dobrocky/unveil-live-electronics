@@ -51,7 +51,7 @@
         \noLines
         \cadenzaOn
         \override Staff.NoteHead.style = #'cross
-        c'1\-\pp
+        c'1\-\pp^"col legno tratto"
         \bar "!" \mark \markup \bold "1:00"
       }
 
