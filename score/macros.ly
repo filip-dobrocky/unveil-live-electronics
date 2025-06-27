@@ -65,13 +65,15 @@
 
 noLines =
 #(define-music-function (parser location) ()
-   #{ \override Staff.StaffSymbol.line-count = #0 #})
+   #{ 
+    \override Staff.StaffSymbol.line-count = #0 
+   #})
 
 knobNote =
 #(define-music-function
   (name unit value min max scaling music)
   (string? string? number? number? number? symbol? ly:music?)
-  #{
+  #{  
     \once \override NoteHead.stencil =
     #(lambda (grob)
        (grob-interpret-markup grob
@@ -96,17 +98,17 @@ knobNotes =
 
 #(define (draw-slider value min max scaling)
    (let* (
-          (norm-val (scaled-value value min max scaling))
-          (slider-height 4.0)
-          (slider-width 0.5)
-          (x 2) ;; horizontal center
-          (line-length 1.0)
-          (y-base 0.5)
-          (y-top (+ y-base slider-height))
-          (y-indicator (+ y-base (* norm-val slider-height)))
-          (x1 (- x (/ line-length 2)))
-          (x2 (+ x (/ line-length 2)))
-         )
+           (norm-val (scaled-value value min max scaling))
+           (slider-height 4.0)
+           (slider-width 0.5)
+           (x 2) ;; horizontal center
+           (line-length 1.0)
+           (y-base 0.5)
+           (y-top (+ y-base slider-height))
+           (y-indicator (+ y-base (* norm-val slider-height)))
+           (x1 (- x (/ line-length 2)))
+           (x2 (+ x (/ line-length 2)))
+           )
      (markup
       #:override '(baseline-skip . 0)
       #:with-dimensions '(0 . 4) '(0 . 4)
@@ -121,9 +123,9 @@ knobNotes =
         ~a ~a moveto
         ~a ~a lineto
         stroke"
-        x y-base x y-top     ;; vertical track
-        x1 y-indicator x2 y-indicator  ;; horizontal marker line
-      ))))
+                           x y-base x y-top     ;; vertical track
+                           x1 y-indicator x2 y-indicator  ;; horizontal marker line
+                           ))))
 
 #(define (fader-with-label name unit value min max scaling)
    (markup
@@ -134,7 +136,7 @@ knobNotes =
                       #:center-align
                       (markup (string-append name ": " (number->string value) " " unit))
                       )))
-            
+
 faderNote =
 #(define-music-function
   (name unit value min max scaling music)
@@ -148,7 +150,7 @@ faderNote =
   #})
 
 faderNotes =
-#(define-music-function 
+#(define-music-function
   (name unit value1 value2 min max scaling dur1 dur2 midnote)
   (string? string? number? number? number? number? symbol? ly:music? ly:music? ly:music?)
   #{
@@ -161,3 +163,65 @@ faderNotes =
     \faderNote #name #unit #value2 #min #max #scaling #dur2
     \stopGroup
   #})
+
+#(define (cue-up-markup text)
+   (let ((label-markup
+           (if (markup? text)
+               (make-small-markup text)
+               (make-small-markup (make-simple-markup "")))))
+     (make-center-column-markup
+      (list
+       (make-combine-markup
+        (make-draw-line-markup '(0 . 3.5))         ; arrow shaft pointing up
+        (make-translate-markup '(0 . 3.5)
+          (make-arrow-head-markup Y UP #t)))      ; arrow head at top
+       (make-translate-markup '(0 . 1.5) label-markup) ; text below the arrow
+       ))))
+
+
+cueUp =
+#(define-music-function
+  (text)
+  (markup?)
+  #{
+    \once \override Score.RehearsalMark.direction = #DOWN
+    \mark \markup #(cue-up-markup text)
+  #})
+
+#(define (cue-down-markup text)
+   (let ((label-markup
+           (if (markup? text)
+               (make-small-markup text)
+               (make-small-markup (make-simple-markup "")))))
+     (make-center-column-markup
+      (list
+       (make-combine-markup
+        (make-draw-line-markup '(0 . 3.5))         ; arrow shaft pointing up
+        (make-translate-markup '(0 . 0)
+          (make-arrow-head-markup Y DOWN #t)))      ; arrow head at top
+       (make-translate-markup '(0 . 1.5) label-markup) ; text below the arrow
+       ))))
+
+
+cueDown =
+#(define-music-function
+  (text)
+  (markup?)
+  #{
+    \once \override Score.RehearsalMark.direction = #DOWN
+    \mark \markup #(cue-down-markup text)
+  #})
+
+#(define (seconds->mmss secs)
+   (let* ((mins (quotient secs 60))
+          (secs-rem (remainder secs 60)))
+     (format #f "~2,'0d:~2,'0d" mins secs-rem)))
+
+#(define (make-mmss-stencil grob)
+  (let* ((bar-text (ly:grob-property grob 'text))
+         (bar-num (if (string? bar-text) (string->number bar-text) 0))
+         (seconds (* (- bar-num 1) 20))
+         (label (seconds->mmss seconds)))
+    (grob-interpret-markup grob
+      (markup #:small #:bold label))))
+
