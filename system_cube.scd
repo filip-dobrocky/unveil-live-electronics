@@ -8,7 +8,7 @@
 // ~micAmps = #[1];
 ~nLoops = 3;
 ~totalChans = ~micIns.size + ~nLoops;
-~maxLoopLen = 40;
+~maxLoopLen = 40;·
 s.options.blockSize = 256;
 s.options.memSize = 614400;
 s.options.numOutputBusChannels = 25;
@@ -110,7 +110,8 @@ s.waitForBoot({
 		\inBus, ~inBus,
 		\ptrBus, ~ptrBus,
 		\out, ~preBus,
-		\buffers, ~buffers.collect({ |buf| buf.bufnum })
+		\buffers, ~buffers.collect({ |buf| buf.bufnum }),
+		\loopAmp, 1.5
 	]);
 
 	~loopers = ~buffers.collect({ |buf, i|
@@ -388,8 +389,8 @@ s.waitForBoot({
 		}
 		{~fx5CtlCC[2]} {
 			scaled = val.linlin(0, 127, 0, 2);
-			// ~spectral.set(\amp, scaled);
-			// "spectral amp: %".format(scaled.round(1e-3)).postln;
+			~spectral.set(\loopAmp, scaled);
+			"spectral amp: %".format(scaled.round(1e-3)).postln;
 		}
 
 		{~fx6CtlCC[0]} {
