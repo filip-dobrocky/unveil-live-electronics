@@ -46,9 +46,23 @@
     print-all-headers = ##t
     #(set-paper-size "a4landscape")
   }
-  \header {
-    % title = "clearing"
-  }
+  % \header {
+  %   title = "clearing"
+  %   composer = "Filip Dobrocky"
+  % }
+
+
+  % \bookpart {
+  %   \markup {
+  %     \override #'(line-width . 842)
+  %     \column {
+  %       \center-align {
+  %         \vspace #5
+  %         \epsfile #X #100 #"ctl_mapping.eps"  % manually scaled (width 400pt)
+  %       }
+  %     }
+  %   }
+  % }
 
   \score {
     \header {
@@ -68,10 +82,18 @@
         \override Rest.direction = #CENTER
 
         c'1\-\pp^"col legno tratto" _"slightly varying noise"
-        \override Staff.NoteHead.style = #'none
-        c'1\-
+        \omit NoteHead
+        c'4\-
+        \undo \omit NoteHead
+        c'8-> ^"strike string" \mf
+        c'8\- \p
+        \omit NoteHead
+        c'2\-
         \undo \omit Rest
-        r2 r2 r2 r2
+        r2 r2 r4.
+        \undo \omit NoteHead
+        c'8-> ^"strike string" \f
+        r2
         \omit Score.BarNumber
       }
 
@@ -87,18 +109,18 @@
             \override Rest.direction = #CENTER
             r2
             \knobNotes "FX2 mix" "" 0 0.8 0 1 #'lin c4. c8 f
-            \omit r4
-            \knobNotes "FX3 mix" "" 0 0.6 0 1 #'lin c2 c4 f
+            \omit r2
+            \knobNotes "FX3 mix" "" 0 0.6 0 1 #'lin c4. c8 f
             \cueDown "L1 rec"
             \break
             % \bar "!" \mark \markup \bold "1:20"
             \knobNotes "Push" "" 1.57 0.0 0 1.57 #'lin c2. c4 g
             % \omit r4
-            \knobNotes "FX4 mix" "" 0 0.8 0 1 #'lin c4. c8 f
+            \knobNotes "FX4 mix" "" 0 0.5 0 1 #'lin c4. c8 f
             \knobNote "FX4 mix" "" 0 0 1 #'lin c4
             ^"change parameters to 0 fairly quickly"
-            \knobNote "RTT" "" 0 0 1 #'lin c4
-            \cueUp "L1 stop"
+            \knobNote "RTT" "" 0 0 1 #'lin c8.
+            \faderNote "L1" "dB" -65 -65 12 #'lin c16
           }
         }
 
@@ -148,7 +170,7 @@
       } {
         % \cadenzaOn
         \time 8/4
-        \set Score.currentBarNumber = #10
+        \set Score.currentBarNumber = #9
         \override Staff.NoteHead.style = #'cross
         \override Score.BarNumber.break-visibility = ##(#t #t #t)
         \override Rest.direction = #CENTER
@@ -164,8 +186,8 @@
         }
         r4 r16 r4.
         \revert Staff.NoteHead.style
-        g,2\mf^"arco" \-
-        d2\-
+        g,2\mf_"arco" \-
+        d2\- _"sul ponticello"
         d4\glissando _"gliss"
         a8 \glissando f'8 \glissando e'8 \glissando e'8 \glissando d8
         r8
@@ -225,8 +247,7 @@
             \knobNote "Tumble" "" 0 -3.14 3.14 #'lin c4
             r4 r4 r4
 
-            \faderNote "L1" "dB" 0 -65 12 #'lin c4
-            \knobNote "Push" "" 0 0 1 #'lin c2.
+            \faderNote "L1" "dB" 0 -65 12 #'lin c8
           }
         }
 
@@ -239,23 +260,28 @@
             \knobNote "FX2 ratio" "" 1.3 0.025 38 #'exp c4
             r1 r2 r2 r2
             \knobNote "Tumble" "" 1.5 -3.14 3.14 #'lin c4
-            r1 r2 r8        \cueDown "L2 rec"
+            r1 r2 r8
+            \cueDown "L2 rec"
             r1 r1
             \knobNote "Push" "" 1 0 1 #'lin c2.
+            \knobNote "Reso f scale" "" 1 0.025 38.055 #'exp c1
 
-            r1 r2
+            r2
             \knobNote "FX1 mix" "" 0 0 1 #'lin c2
             \knobNote "FX2 mix" "" 0 0 1 #'lin c2
             r1
-            \faderNote "L2" "dB" -65 -65 12 #'lin c1
+            \faderNote "L2" "dB" -65 -65 12 #'lin c8
 
           }
 
         }
         \new Voice {
           \relative c {
+            \shiftOff
             r1 r r r r r r r r r r r
-            \faderNote "L3" "dB" -65 -65 12 #'lin c1
+            \faderNote "L3" "dB" -65 -65 12 #'lin c8
+            \knobNote "Push" "" 0 0 1 #'lin c4.
+
 
           }
         }
@@ -272,7 +298,7 @@
         \column {
           \vspace #1
           \justify {
-            aleatoric, duration ~1:30
+            aleatoric, duration ~2:00
           }
           \vspace #1
         }
@@ -339,29 +365,29 @@
         \new Voice {
           \shiftOff
           \relative c'''' {
-          \faderNote "S1" "" 0.8 0 1 #'lin c4 ^"spectral freeze"
-          r2. r4
-          \faderNote "S2" "" 1 0 1 #'lin c4
-          r4
-          \knobNote "FX4 mix" "" 0.4 0 1 #'lin c4.
-          \faderNotes "S1" "" 0.8 0 0 1 #'lin c2. c4 g
-          r8
-          \knobNotes "FX2 mix" "" 0 1 0 1 #'lin c4. c8 f
-          \knobNote "FX2 mix" "" 0 0 1 #'lin c4
-          \break
-          \faderNotes "S3" "" 0 1 0 1 #'lin c2. c4 f
-          \faderNote "S1" "" 1 0 1 #'lin c2
-          \knobNotes "FX3 mix" "" 0 0.4 0 1 #'lin c2. c4 
-          r2
-          \knobNote "FX3 mix" "" 0 0 1 #'lin c4
-          r2.
-          \faderNote "S1" "" 0 0 1 #'lin c8
-          \faderNote "S2" "" 0 0 1 #'lin c8
-          \faderNote "S3" "" 0 0 1 #'lin c8
-          r1
+            \faderNote "S1" "" 0.8 0 1 #'lin c4 ^"spectral freeze"
+            r2. r4
+            \faderNote "S2" "" 1 0 1 #'lin c4
+            r4
+            \knobNote "FX4 mix" "" 0.2 0 1 #'lin c4.
+            \faderNotes "S1" "" 0.8 0 0 1 #'lin c2. c4 g
+            r8
+            \knobNotes "FX2 mix" "" 0 1 0 1 #'lin c4. c8 f
+            \knobNote "FX2 mix" "" 0 0 1 #'lin c4
+            \break
+            \faderNotes "S3" "" 0 1 0 1 #'lin c2. c4 f
+            \faderNote "S1" "" 1 0 1 #'lin c2
+            \knobNotes "FX3 mix" "" 0 0.4 0 1 #'lin c2. c4
+            r2
+            \knobNote "FX3 mix" "" 0 0 1 #'lin c4
+            r2.
+            \faderNote "S1" "" 0 0 1 #'lin c8
+            \faderNote "S2" "" 0 0 1 #'lin c8
+            \faderNote "S3" "" 0 0 1 #'lin c8
+            r1
 
           }
-          
+
 
         }
 
@@ -409,10 +435,19 @@
       \cadenzaOn
       r8
       ^"slowly fade in all loops one by one"
-      \faderNote "L1" "dB" 0 -65 12 #'lin c8
-      \faderNote "L2" "dB" 0 -65 12 #'lin c8
       \faderNote "L3" "dB" 0 -65 12 #'lin c8
-      r4 ^"gradually apply FX and fade out"
+      \faderNote "L2" "dB" 0 -65 12 #'lin c8
+      \faderNote "L1" "dB" 0 -65 12 #'lin c8
+      \knobNote "FX1 mix" "" 1 0 1 #'lin c8
+      ^"gradually apply FX and fade out"
+      \knobNote "FX2 mix" "" 1 0 1 #'lin c8
+      \knobNote "FX3 mix" "" 1 0 1 #'lin c8
+      \knobNote "FX4 mix" "" 1 0 1 #'lin c8
+      \knobNote "RTT" "" 1 0 1 #'lin c8
+      \knobNote "FX3 mix" "" 0 0 1 #'lin c8
+      \faderNote "L3" "dB" -65 -65 12 #'lin c8
+      \faderNote "L2" "dB" -65 -65 12 #'lin c8
+      \faderNote "L1" "dB" -65 -65 12 #'lin c8
 
       \cadenzaOff
     }
