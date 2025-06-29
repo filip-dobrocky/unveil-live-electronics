@@ -8,7 +8,7 @@
 // ~micAmps = #[1];
 ~nLoops = 3;
 ~totalChans = ~micIns.size + ~nLoops;
-~maxLoopLen = 30;
+~maxLoopLen = 40;
 s.options.blockSize = 256;
 s.options.memSize = 614400;
 s.options.numOutputBusChannels = 25;
@@ -126,7 +126,7 @@ s.waitForBoot({
 	~reso = Synth(\reso, [\bus, ~preBus], addAction: 'addToTail');
 	~pitchShifter = Synth(\pitchShifter, [\bus, ~preBus], addAction: 'addToTail');
 	~destroyer = Synth(\destroyer, [\bus, ~preBus], addAction: 'addToTail');
-	~reverb = Synth(\reverb, [\bus, ~preBus, \shimmerMix, 0, \mix, 0, \damping, 0.9],  addAction: 'addToTail');
+	~reverb = Synth(\reverb, [\bus, ~preBus, \shimmerMix, 0.66, \mix, 0, \damping, 0.9],  addAction: 'addToTail');
 	Synth(\fxTail, [\in, ~preBus, \out, ~postBus], addAction: 'addToTail');
 	~directOut = Synth(\directOut, [\in, ~preBus, \out, 0, \pushAngle, pi/2], addAction: 'addToTail');
 
@@ -137,6 +137,7 @@ s.waitForBoot({
 	~destroyer.set(\bass, 0);
 	~pitchShifter.set(\ratio, 38);
 	~reso.set(\freqScale, 0.14);
+	~directOut.set(\rttFreq, 22);
 
 	// === Controls ===
 	s.sync;
@@ -284,22 +285,22 @@ s.waitForBoot({
 		{~inputLvlCC} {
 			scaled = ~midiLvlScale.(val);
 			~directIn.set(\amp, scaled);
-			"input level: % dB".format(scaled.ampdb).postln;
+			"input level: % dB".format(scaled.round(1e-3).ampdb).postln;
 		}
 		{~inputGainCC} {
 			scaled = val.linlin(0, 127, 0, 18);
 			~directIn.set(\gain, scaled.dbamp);
-			"input gain: % dB".format(scaled).postln;
+			"input gain: % dB".format(scaled.round(1e-3)).postln;
 		}
 		{~inputCThreshCC} {
 			scaled = val.linlin(0, 127, 0.001, 1);
 			~directIn.set(\thresh, scaled);
-			"input compressor threshold: %".format(scaled).postln;
+			"input compressor threshold: %".format(scaled.round(1e-3)).postln;
 		}
 		{~inputCRatioCC} {
 			scaled = val.linlin(0, 127, 1, 8);
 			~directIn.set(\ratio, scaled);
-			"input compressor ratio: 1:%".format(scaled).postln;
+			"input compressor ratio: 1:%".format(scaled.round(1e-3)).postln;
 		}{};
 
 	});
@@ -312,114 +313,114 @@ s.waitForBoot({
 		{~fx1CtlCC[0]} {
 			scaled = val.linlin(0, 127, 0, 1);
 			~reso.set(\mix, scaled);
-			"resonator mix: %".format(scaled).postln;
+			"resonator mix: %".format(scaled.round(1e-3)).postln;
 
 		}
 		{~fx1CtlCC[1]} {
 			scaled = (val - 64).midiratio;
 			~reso.set(\freqScale, scaled);
-			"resonator f scale: %".format(scaled).postln;
+			"resonator f scale: %".format(scaled.round(1e-3)).postln;
 		}
 		{~fx1CtlCC[2]} {
 			scaled = val.linlin(0, 127, 0.001, 2);
 			~reso.set(\decayScale, scaled);
-			"resonator decay scale: %".format(scaled).postln;
+			"resonator decay scale: %".format(scaled.round(1e-3)).postln;
 		}
 		{~fx2CtlCC[0]} {
 			scaled = val.linlin(0, 127, 0, 1);
 			~pitchShifter.set(\mix, scaled);
-			"pitch shifter mix: %".format(scaled).postln;
+			"pitch shifter mix: %".format(scaled.round(1e-3)).postln;
 
 		}
 		{~fx2CtlCC[1]} {
 			scaled = (val - 64).midiratio;
 			~pitchShifter.set(\ratio, scaled);
-			"pitch shifter ratio: %".format(scaled).postln;
+			"pitch shifter ratio: %".format(scaled.round(1e-3)).postln;
 		}
 		{~fx2CtlCC[2]} {
 			scaled = val.linlin(0, 127, 0, 1);
 
-			": %".format(scaled).postln;
+			": %".format(scaled.round(1e-3)).postln;
 		}
 		{~fx3CtlCC[0]} {
 			scaled = val.linlin(0, 127, 0, 1);
 			~destroyer.set(\mix, scaled);
-			"destroyer mix: %".format(scaled).postln;
+			"destroyer mix: %".format(scaled.round(1e-3)).postln;
 		}
 		{~fx3CtlCC[1]} {
 			scaled = val.linlin(0, 127, 0, 1);
 			~destroyer.set(\crush, scaled);
-			"destroyer crush: %".format(scaled).postln;
+			"destroyer crush: %".format(scaled.round(1e-3)).postln;
 		}
 		{~fx3CtlCC[2]} {
 			scaled = val.linlin(0, 127, 0, 1);
 			~destroyer.set(\bass, scaled);
-			"destroyer bass: %".format(scaled).postln;
+			"destroyer bass: %".format(scaled.round(1e-3)).postln;
 		}
 		{~fx4CtlCC[0]} {
 			scaled = val.linlin(0, 127, 0, 1);
 			~reverb.set(\mix, scaled);
-			"reverb mix: %".format(scaled).postln;
+			"reverb mix: %".format(scaled.round(1e-3)).postln;
 
 		}
 		{~fx4CtlCC[1]} {
 			scaled = val.linlin(0, 127, 0, 1);
 			~reverb.set(\shimmerMix, scaled);
-			"reverb shimmer mix: %".format(scaled).postln;
+			"reverb shimmer mix: %".format(scaled.round(1e-3)).postln;
 
 		}
 		{~fx4CtlCC[2]} {
 			scaled = val.linlin(0, 127, 0.001, 0.99);
 			~reverb.set(\damping, scaled);
-			"reverb damping: %".format(scaled).postln;
+			"reverb damping: %".format(scaled.round(1e-3)).postln;
 		}
 
 		{~fx5CtlCC[0]} {
 			scaled = val.linlin(0, 127, 0, 1);
-			": %".format(scaled).postln;
+			": %".format(scaled.round(1e-3)).postln;
 
 		}
 		{~fx5CtlCC[1]} {
 			scaled = val.linlin(0, 127, 0, 1);
 			~spectral.set(\freezeThresh, scaled);
-			"spectral freeze threshold: %".format(scaled).postln;
+			"spectral freeze threshold: %".format(scaled.round(1e-3)).postln;
 
 		}
 		{~fx5CtlCC[2]} {
 			scaled = val.linlin(0, 127, 0, 2);
-			~spectral.set(\amp, scaled);
-			"spectral amp: %".format(scaled).postln;
+			// ~spectral.set(\amp, scaled);
+			// "spectral amp: %".format(scaled.round(1e-3)).postln;
 		}
 
 		{~fx6CtlCC[0]} {
 			scaled = val.linlin(0, 127, 0, 1);
 			~directOut.set(\reverbMix, scaled);
-			"ambiverb mix: %".format(scaled).postln;
+			"ambiverb mix: %".format(scaled.round(1e-3)).postln;
 		}
 		{~fx6CtlCC[1]} {
 			scaled = val.linlin(0, 127, -pi, pi);
-			": %".format(scaled).postln;
+			": %".format(scaled.round(1e-3)).postln;
 		}
 		{~fx6CtlCC[2]} {
 			scaled = val.linlin(0, 127, 0, 200);
 			~directOut.set(\rttFreq, scaled);
-			"rtt freq: %".format(scaled).postln;
+			"rtt freq: %".format(scaled.round(1e-3)).postln;
 		}
 
 		{~fx8CtlCC[0]} {
 			scaled = val.linlin(0, 127, 0, pi / 2);
 			~directOut.set(\pushAngle, scaled);
-			"push angle: %".format(scaled).postln;
+			"push angle: %".format(scaled.round(1e-3)).postln;
 		}
 		{~fx8CtlCC[1]} {
 			scaled = val.linlin(0, 127, -pi, pi);
 			~directOut.set(\rotY, scaled);
-			"tumble: %".format(scaled).postln;
+			"tumble: %".format(scaled.round(1e-3)).postln;
 		}
 		{~fx8CtlCC[2]} {
 			scaled = val.linlin(0, 127, pi, -pi);
 			~directOut.set(\rotX, scaled);
-			"rotate: %".format(scaled).postln;
+			"rotate: %".format(scaled.round(1e-3)).postln;
 		}
 
 		{ /*default case*/ };
@@ -442,6 +443,7 @@ s.waitForBoot({
 (
 // GUI
 this.executeFile(~dir +/+ "stopwatch.scd");
+s.meter;
 fork {
 	VSTPlugin.search(s);
 	s.sync;
@@ -483,6 +485,7 @@ a = {Out.ar(~preBus,
 	(LFDNoise3.kr(7 ! ~totalChans))
 )}.play
 )
+a.free
 
 MIDIIn.connectAll;
 MIDIFunc.trace(true);
