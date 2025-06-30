@@ -134,11 +134,15 @@ s.waitForBoot({
 	~fx = [~reso, ~pitchShifter, ~destroyer, ~reverb];
 
 	// Initial parameters
+	~loopAmps = Array.fill(~nLoops, { 1 });
+
 	~destroyer.set(\crush, 0.5);
 	~destroyer.set(\bass, 0);
 	~pitchShifter.set(\ratio, 38);
 	~reso.set(\freqScale, 0.14);
 	~directOut.set(\rttFreq, 22);
+	~loopers[1].set(\loopAmp, 0);
+	~loopAmps[1] = 0;
 
 	// === Controls ===
 	s.sync;
@@ -146,8 +150,6 @@ s.waitForBoot({
 	~playBtnStates = Array.fill(~nLoops, { false });
 	~recBtnStates = Array.fill(~nLoops, { false });
 	~loopStates = Array.fill(~nLoops, { false });
-	~loopAmps = Array.fill(~nLoops, { 1 });
-
 
 	~clearRoutines = Array.fill(~nLoops, { });
 
@@ -178,7 +180,7 @@ s.waitForBoot({
 				~buffers[recIndex].zero;
 				~loopStates[recIndex] = false;
 				~recBtnStates[recIndex] = false;
-				"buffer % cleared".format(recIndex).postln;
+				"buffer % cleared".format(recIndex + 1).postln;
 			}).play;
 
 			if (~recBtnStates[recIndex] == false)
@@ -193,14 +195,14 @@ s.waitForBoot({
 						\loopAmp, ~loopAmps[recIndex]);
 				};
 
-				("recording into buffer " ++ recIndex).postln;
+				("recording into buffer " ++ (recIndex + 1)).postln;
 
 				~recBtnStates[recIndex] = true;
 				~loopStates[recIndex] = true;
 			}
 			{
 				// stop recording, continue playing
-				("recorded into buffer " ++ recIndex).postln;
+				("recorded into buffer " ++ (recIndex + 1)).postln;
 				~loopers[recIndex].set(\run, 0, \recGain, 0, \fbGain, 1,
 					\loopAmp, ~loopAmps[recIndex]);
 				~recBtnStates[recIndex] = false;
@@ -215,13 +217,13 @@ s.waitForBoot({
 				~loopers[playIndex].set(\playTrig, 1, \run, 0, \reclev, 0, \prelev, 1,
 					\loopAmp, ~loopAmps[playIndex]);
 				~playBtnStates[playIndex] = true;
-				"loop % playing".format(playIndex).postln;
+				"loop % playing".format(playIndex + 1).postln;
 			}
 			{
 				// stop playing
 				~loopers[playIndex].set(\run, 0, \reclev, 0, \prelev, 1, \loopAmp, 0);
 				~playBtnStates[playIndex] = false;
-				"loop % stopped".format(playIndex).postln;
+				"loop % stopped".format(playIndex + 1).postln;
 			};
 
 		};
@@ -243,6 +245,16 @@ s.waitForBoot({
 		};
 	});
 
+	MIDIdef.cc(\rttButton, { |val, num|
+		var rotate = rrand(-pi, pi);
+		var tumble = rrand(-pi, pi);
+		if (val > 0) {
+			~directOut.set(\rotX, rotate);
+			~directOut.set(\rotY, tumble);
+			"random RT: % %".format(rotate, tumble).postln;
+		};
+	}, (104..107));
+
 	MIDIdef.cc(\loopLevels, {
 		arg val, num;
 		var loopIndex, loopAmp;
@@ -253,7 +265,7 @@ s.waitForBoot({
 			if (~playBtnStates[loopIndex]) {
 				~loopers[loopIndex].set(\loopAmp, loopAmp);
 			};
-			"loop % level: % dB".format(loopIndex, loopAmp.ampdb).postln;
+			"loop % level: % dB".format(loopIndex + 1, loopAmp.ampdb).postln;
 		};
 	});
 
