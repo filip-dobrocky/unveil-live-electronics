@@ -1,3 +1,5 @@
+\version "2.24.2"
+
 #(define pi (* 2 (acos 0)))
 #(define deg->rad (/ pi 180))
 

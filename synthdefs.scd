@@ -4,13 +4,13 @@ SynthDef(\directIn, {
 	sig = sig * \inAmps.kr(~micAmps);
 	sig = sig * \gain.kr(1);
 	sig = Compander.ar(sig, sig,
-		\thresh.kr(0.5),
+		\thresh.kr(0.4),
 		1,
 		1 / \ratio.kr(4),
 		0.01,
 		0.1
 	);
-	Out.ar(\out.ir(0), sig * \amp.kr(1));
+	Out.ar(\out.ir(0), sig * \amp.kr(2.5));
 }).add;
 
 SynthDef(\looper, {
