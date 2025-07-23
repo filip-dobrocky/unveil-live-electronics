@@ -1,0 +1,8 @@
+# Ignore all .aux files in score/
+score/*.aux
+score/*.log
+score/*.out
+score/*.synctex.gz
+score/*.fls
+score/*.fdb_latexmk
+score/*eps-converted-to.pdf
