@@ -195,7 +195,9 @@
         r2
         {
           \override NoteHead.style = #'harmonic
-          g,16 _"harmonics"
+          g,16 
+          \single \footnote #'(0.5 . 0.5) "Slide over natural harmonics freely, continuously" TextScript
+          _\markup { "harmonic glissando" }
           \glissando g \glissando d' \glissando g' \glissando bes' \glissando d'' \glissando f'' \glissando g'' \glissando a'' \glissando bes''
           % Descending
           \glissando a''32 \glissando g'' \glissando f'' \glissando d'' \glissando bes' \glissando g' \glissando d' \glissando g \glissando g
@@ -346,7 +348,7 @@
 
         r4 ^"reset stopwatch"
         c'32 ^"col legno battuto" \mf
-        16 16 16 32 32 64 128 4
+        16 16 16 32 32 64 128 4 _"arbitrary rhythm"
 
         r4 r1
         c'8 8 8 8 8 8 8 8
